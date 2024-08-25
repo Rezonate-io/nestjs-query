@@ -1,9 +1,16 @@
 import { Field, InputType } from '@nestjs/graphql'
-import { Class, FilterComparisons, HavingFilter, MapReflector } from '@rezonate/nestjs-query-core'
+import {
+  Class,
+  CommonFieldComparisonType,
+  FilterComparisons,
+  FilterFieldComparison,
+  HavingFilter,
+  MapReflector
+} from '@rezonate/nestjs-query-core'
 import { Type } from 'class-transformer'
-import {  ValidateNested } from 'class-validator'
+import { ValidateNested } from 'class-validator'
 import { getDTONames, getGraphqlObjectName } from '../../common'
-import { getFilterableFields } from '../../decorators'
+import { FilterableFieldDescriptor, getFilterableFields } from "../../decorators";
 import { createFilterComparisonType } from './field-comparison'
 import { upperCaseFirst } from 'upper-case-first'
 import { HasRequiredFilter } from '../../decorators/has-required.filter'
@@ -14,6 +21,54 @@ export interface HavingFilterConstructor<T> {
   hasRequiredFilters: boolean
 
   new (): HavingFilter<T>
+}
+function createHavingFilterComparison<T>(FieldType: Class<T>, fieldName: string): Class<CommonFieldComparisonType<T>> {
+  const name = `${fieldName}HavingFilterComparison`
+
+  @InputType(name)
+  class HavingFilterComparison {
+    @Field(() => Number, { nullable: true })
+    @Type(() => FieldType)
+    eq?: number
+
+    @Field(() => Number, { nullable: true })
+    @Type(() => FieldType)
+    neq?: number
+
+    @Field(() => Number, { nullable: true })
+    @Type(() => FieldType)
+    gt?: number
+
+    @Field(() => Number, { nullable: true })
+    @Type(() => FieldType)
+    gte?: number
+
+    @Field(() => Number, { nullable: true })
+    @Type(() => FieldType)
+    lt?: number
+
+    @Field(() => Number, { nullable: true })
+    @Type(() => FieldType)
+    lte?: number
+  }
+
+  return HavingFilterComparison as Class<CommonFieldComparisonType<T>>
+}
+function createHavingFilter(name: string, fields: FilterableFieldDescriptor[] ) {
+
+  @InputType(name)
+  class HavingFilterAggFunc {}
+
+  fields.forEach((field) => {
+    const { target, advancedOptions, propertyName } = field
+
+    const FC = createHavingFilterComparison(target, `${name}${upperCaseFirst(propertyName)}`)
+
+    Field(() => FC, { nullable: true })(HavingFilterAggFunc.prototype, propertyName)
+    Type(() => FC)(HavingFilterAggFunc.prototype, propertyName)
+  })
+
+  return HavingFilterAggFunc
 }
 
 function getObjectTypeName<DTO>(DTOClass: Class<DTO>): string {
@@ -32,56 +87,45 @@ function getOrCreateHavingFilterType<T>(TClass: Class<T>, name: string): HavingF
     @InputType(`${name}HavingComparison${Date.now()}`)
     class GraphqlHavingFieldsFilterComparison {}
 
+    const SumFilter = createHavingFilter(`${name}Sum`, fields)
+    const MinFilter = createHavingFilter(`${name}Min`, fields)
+    const MaxFilter = createHavingFilter(`${name}Max`, fields)
+    const CountFilter = createHavingFilter(`${name}Count`, fields)
+    const DistinctCountFilter = createHavingFilter(`${name}DistinctCount`, fields)
+    const AvgFilter = createHavingFilter(`${name}Avg`, fields)
+
     @InputType(name)
     class GraphQLHavingFilter {
       @ValidateNested()
-      @Field(() => GraphqlHavingFieldsFilterComparison, { nullable: true })
-      @Type(() => GraphqlHavingFieldsFilterComparison)
+      @Field(() => SumFilter, { nullable: true })
+      @Type(() => SumFilter)
       sum?: FilterComparisons<T>
 
       @ValidateNested()
-      @Field(() => GraphqlHavingFieldsFilterComparison, { nullable: true })
-      @Type(() => GraphqlHavingFieldsFilterComparison)
+      @Field(() => MaxFilter, { nullable: true })
+      @Type(() => MaxFilter)
       max?: FilterComparisons<T>
 
       @ValidateNested()
-      @Field(() => GraphqlHavingFieldsFilterComparison, { nullable: true })
-      @Type(() => GraphqlHavingFieldsFilterComparison)
+      @Field(() => MinFilter, { nullable: true })
+      @Type(() => MinFilter)
       min?: FilterComparisons<T>
 
       @ValidateNested()
-      @Field(() => GraphqlHavingFieldsFilterComparison, { nullable: true })
-      @Type(() => GraphqlHavingFieldsFilterComparison)
+      @Field(() => CountFilter, { nullable: true })
+      @Type(() => CountFilter)
       count?: FilterComparisons<T>
 
       @ValidateNested()
-      @Field(() => GraphqlHavingFieldsFilterComparison, { nullable: true })
-      @Type(() => GraphqlHavingFieldsFilterComparison)
+      @Field(() => DistinctCountFilter, { nullable: true })
+      @Type(() => DistinctCountFilter)
       distinctCount?: FilterComparisons<T>
 
       @ValidateNested()
-      @Field(() => GraphqlHavingFieldsFilterComparison, { nullable: true })
-      @Type(() => GraphqlHavingFieldsFilterComparison)
+      @Field(() => AvgFilter, { nullable: true })
+      @Type(() => AvgFilter)
       avg?: FilterComparisons<T>
     }
-
-    const { baseName } = getDTONames(TClass)
-    fields.forEach(({ propertyName, target, advancedOptions, returnTypeFunc }) => {
-      const FC = createFilterComparisonType({
-        FieldType: target,
-        fieldName: `${baseName}${upperCaseFirst(propertyName)}`,
-        allowedComparisons: advancedOptions?.allowedComparisons,
-        isJSON: advancedOptions?.isJSON,
-        returnTypeFunc
-      })
-      const nullable = advancedOptions?.filterRequired !== true
-      ValidateNested()(GraphqlHavingFieldsFilterComparison.prototype, propertyName)
-      if (advancedOptions?.filterRequired) {
-        HasRequiredFilter()(GraphqlHavingFieldsFilterComparison.prototype, propertyName)
-      }
-      Field(() => FC, { nullable })(GraphqlHavingFieldsFilterComparison.prototype, propertyName)
-      Type(() => FC)(GraphqlHavingFieldsFilterComparison.prototype, propertyName)
-    })
 
     return GraphQLHavingFilter as HavingFilterConstructor<T>
   })

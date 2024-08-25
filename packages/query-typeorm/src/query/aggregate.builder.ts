@@ -217,13 +217,13 @@ export class AggregateBuilder<Entity> {
   }
 
   public buildHavingFilter<Qb extends SelectQueryBuilder<Entity>>(qb: Qb, having: HavingFilter<Entity>, alias?: string): Qb {
-    const aggFuncMapper = new Map<keyof HavingFilter<Entity>, AggregateFuncs>([
-      ['avg', AggregateFuncs.AVG],
-      ['min', AggregateFuncs.MIN],
-      ['max', AggregateFuncs.MAX],
-      ['sum', AggregateFuncs.SUM],
-      ['count', AggregateFuncs.COUNT],
-      ['distinctCount', AggregateFuncs.DISTINCT_COUNT]
+    const aggFuncMapper = new Map<keyof HavingFilter<Entity>, (col: string) => string>([
+      ['avg', (columnName: string) => `AVG(${columnName})`],
+      ['min', (columnName: string) => `MIN(${columnName})`],
+      ['max', (columnName: string) => `MAX(${columnName})`],
+      ['sum', (columnName: string) => `SUM(${columnName})`],
+      ['count', (columnName: string) => `COUNT(${columnName})`],
+      ['distinctCount', (columnName: string) => `COUNT(DISTINCT ${columnName})`]
     ])
 
     Object.entries(having).forEach(([aggFunc, filter]) => {
@@ -234,9 +234,9 @@ export class AggregateBuilder<Entity> {
         let column: string
 
         if (!alias) {
-          column = `${aggFuncMapper.get(aggFunc as keyof HavingFilter<Entity>)}(${field})`
+          column = aggFuncMapper.get(aggFunc as keyof HavingFilter<Entity>)(field)
         } else {
-          column = `${aggFuncMapper.get(aggFunc as keyof HavingFilter<Entity>)}(${alias}.${field})`
+          column = aggFuncMapper.get(aggFunc as keyof HavingFilter<Entity>)(`${alias}.${field}`)
         }
 
         const sqlComparisons = opts.map((cmpType) =>
