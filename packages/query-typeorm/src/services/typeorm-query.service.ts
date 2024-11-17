@@ -89,6 +89,14 @@ export class TypeOrmQueryService<Entity>
     return this.filterQueryBuilder.select(query, repo).getMany()
   }
 
+  async queryIds(query: Query<Entity>, idField: keyof Entity): Promise<string[]> {
+    const result = (await this.filterQueryBuilder.select(query).limit(10000).select(idField.toString()).getRawMany()) as Record<
+      keyof Entity,
+      string
+    >[]
+    return result.map((item) => item[idField] as string)
+  }
+
   async quicklyCount() {
     const result = (await this.repo.query('SELECT reltuples AS estimate FROM pg_class where relname = $1', [
       this.repo.metadata.tableName
@@ -144,6 +152,7 @@ export class TypeOrmQueryService<Entity>
     to: Date,
     interval: number,
     span: AggregateByTimeIntervalSpan,
+    accumulate?: boolean,
     groupByLimit?: number,
     maxRowsAggregationLimit?: number,
     maxRowsAggregationWithIndexLimit?: number,
@@ -155,7 +164,7 @@ export class TypeOrmQueryService<Entity>
       limitAggregateByTableSize
     )
 
-    const promise = this.filterQueryBuilder.aggregateByTime({ filter }, aggregate, timeField, from, to, interval, span, failOnMissingIndex)
+    const promise = this.filterQueryBuilder.aggregateByTime({ filter }, aggregate, accumulate, timeField, from, to, interval, span, failOnMissingIndex)
     return AggregateBuilder.asyncConvertToAggregateByTimeResponse(promise, groupByLimit)
   }
 

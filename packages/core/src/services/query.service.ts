@@ -41,6 +41,7 @@ export interface QueryService<DTO, C = DeepPartial<DTO>, U = DeepPartial<DTO>> {
    */
   query(query: Query<DTO>): Promise<DTO[]>
 
+  queryIds(query: Query<DTO>, idField: keyof DTO): Promise<string[]>
 
   aggregate(
     filter: Filter<DTO>,
@@ -60,6 +61,7 @@ export interface QueryService<DTO, C = DeepPartial<DTO>, U = DeepPartial<DTO>> {
     to: Date,
     interval: number,
     span: AggregateByTimeIntervalSpan,
+    accumulate?: boolean,
     groupByLimit?: number,
     maxRowsAggregationLimit?: number,
     maxRowsAggregationWithIndexLimit?: number,

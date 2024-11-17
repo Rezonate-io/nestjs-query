@@ -198,12 +198,16 @@ export class ProxyQueryService<DTO, C = DeepPartial<DTO>, U = DeepPartial<DTO>> 
     return this.proxied.query(query)
   }
 
+  queryIds(query: Query<DTO>, idField: keyof DTO): Promise<string[]> {
+    return this.proxied.queryIds(query, idField)
+  }
+
   aggregate(filter: Filter<DTO>, query: AggregateQuery<DTO>): Promise<AggregateResponse<DTO>[]> {
     return this.proxied.aggregate(filter, query)
   }
 
-  aggregateByTime(filter: Filter<DTO>, aggregate: AggregateQuery<DTO>, timeField: string, from: Date, to: Date, interval: number, span: AggregateByTimeIntervalSpan, groupByLimit?: number, maxRowsAggregationLimit?: number, maxRowsAggregationWithIndexLimit?: number, limitAggregateByTableSize?: boolean): Promise<AggregateByTimeResponse<DTO>> {
-    return Promise.resolve([]);
+  aggregateByTime(): Promise<AggregateByTimeResponse<DTO>> {
+    return Promise.resolve([] as AggregateByTimeResponse<DTO>);
   }
 
   count(filter: Filter<DTO>): Promise<number> {
