@@ -1,13 +1,13 @@
-import { Field, InputType } from '@nestjs/graphql'
-import { Class, Filter } from '@rezonate/nestjs-query-core'
-import { Type } from 'class-transformer'
-import { IsNotEmptyObject, ValidateNested } from 'class-validator'
+import { Field, InputType } from '@nestjs/graphql';
+import { Class, DeepPartial, Filter } from '@rezonate/nestjs-query-core';
+import { Type } from 'class-transformer';
+import { IsNotEmptyObject, ValidateNested } from 'class-validator';
 
-import { UpdateFilterType } from './query'
+import { UpdateFilterType } from './query';
 
-export interface UpdateManyInputType<DTO, U> {
+export interface UpdateManyInputType<DTO> {
   filter: Filter<DTO>
-  update: U
+  update: DeepPartial<DTO>
 }
 
 /**
@@ -16,22 +16,22 @@ export interface UpdateManyInputType<DTO, U> {
  * @param UpdateType - The InputType to use for the update field.
  */
 // eslint-disable-next-line @typescript-eslint/no-redeclare -- intentional
-export function UpdateManyInputType<DTO, U>(DTOClass: Class<DTO>, UpdateType: Class<U>): Class<UpdateManyInputType<DTO, U>> {
-  const F = UpdateFilterType(DTOClass)
+export function UpdateManyInputType<DTO>(DTOClass: Class<DTO>, UpdateType: Class<DeepPartial<DTO>>): Class<UpdateManyInputType<DTO>> {
+  const F = UpdateFilterType(DTOClass);
 
   @InputType({ isAbstract: true })
-  class UpdateManyInput implements UpdateManyInputType<DTO, U> {
+  class UpdateManyInput implements UpdateManyInputType<DTO> {
     @IsNotEmptyObject()
     @ValidateNested()
     @Type(() => F)
     @Field(() => F, { description: 'Filter used to find fields to update' })
-    filter!: Filter<DTO>
+    filter!: Filter<DTO>;
 
     @Type(() => UpdateType)
     @ValidateNested()
     @Field(() => UpdateType, { description: 'The update to apply to all records found using the filter' })
-    update!: U
+    update!: DeepPartial<DTO>;
   }
 
-  return UpdateManyInput
+  return UpdateManyInput;
 }

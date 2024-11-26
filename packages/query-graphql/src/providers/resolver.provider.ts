@@ -1,177 +1,124 @@
-import { Inject, Provider } from '@nestjs/common'
-import { Resolver } from '@nestjs/graphql'
+// eslint-disable-next-line max-classes-per-file
+import { Inject, Provider } from '@nestjs/common';
+import { Resolver } from '@nestjs/graphql';
 import {
-  Assembler,
-  AssemblerFactory,
-  AssemblerQueryService,
   Class,
-  InjectAssemblerQueryService,
   InjectQueryService,
-  QueryService
-} from '@rezonate/nestjs-query-core'
-import { PubSub } from 'graphql-subscriptions'
+  QueryService,
+} from '@rezonate/nestjs-query-core';
+import { PubSub } from 'graphql-subscriptions';
 
-import { InjectPubSub } from '../decorators'
-import { CRUDResolver, CRUDResolverOpts, FederationResolver } from '../resolvers'
-import { PagingStrategies } from '../types/query/paging'
+import { InjectPubSub } from '../decorators';
+import { CRUDResolver, CRUDResolverOpts, FederationResolver } from '../resolvers';
+import { PagingStrategies } from '../types/query/paging';
 
-export type CRUDAutoResolverOpts<DTO, C, U, R, PS extends PagingStrategies> = CRUDResolverOpts<DTO, C, U, R, PS> & {
+export type CRUDAutoResolverOpts<DTO, R, PS extends PagingStrategies> = CRUDResolverOpts<DTO, R, PS> & {
   DTOClass: Class<DTO>
-}
+};
 
-export type EntityCRUDAutoResolverOpts<DTO, Entity, C, U, R, PS extends PagingStrategies> = CRUDAutoResolverOpts<
+export type EntityCRUDAutoResolverOpts<DTO, Entity, R, PS extends PagingStrategies> = CRUDAutoResolverOpts<
   DTO,
-  C,
-  U,
   R,
   PS
 > & {
   EntityClass: Class<Entity>
-}
+};
 
-export type AssemblerCRUDAutoResolverOpts<DTO, Assembler, C, U, R, PS extends PagingStrategies> = CRUDAutoResolverOpts<
+export type ServiceCRUDAutoResolverOpts<DTO, QueryService, R, PS extends PagingStrategies> = CRUDAutoResolverOpts<
   DTO,
-  C,
-  U,
-  R,
-  PS
-> & {
-  AssemblerClass: Class<Assembler>
-}
-
-export type ServiceCRUDAutoResolverOpts<DTO, QueryService, C, U, R, PS extends PagingStrategies> = CRUDAutoResolverOpts<
-  DTO,
-  C,
-  U,
   R,
   PS
 > & {
   ServiceClass: Class<QueryService>
-}
+};
 
 export type FederatedAutoResolverOpts<DTO, Service> = {
   type: 'federated'
   DTOClass: Class<DTO>
   Service: Class<Service>
-}
+};
 
-export type AutoResolverOpts<DTO, EntityServiceOrAssembler, C, U, R, PS extends PagingStrategies> =
-  | EntityCRUDAutoResolverOpts<DTO, EntityServiceOrAssembler, C, U, R, PS>
-  | AssemblerCRUDAutoResolverOpts<DTO, EntityServiceOrAssembler, C, U, R, PS>
-  | ServiceCRUDAutoResolverOpts<DTO, EntityServiceOrAssembler, C, U, R, PS>
-  | FederatedAutoResolverOpts<DTO, EntityServiceOrAssembler>
+export type AutoResolverOpts<DTO, EntityService, R, PS extends PagingStrategies> =
+  | EntityCRUDAutoResolverOpts<DTO, EntityService, R, PS>
+  | ServiceCRUDAutoResolverOpts<DTO, EntityService, R, PS>
+  | FederatedAutoResolverOpts<DTO, EntityService>;
 
-export const isFederatedResolverOpts = <DTO, MaybeService, C, U, R, PS extends PagingStrategies>(
-  opts: AutoResolverOpts<DTO, MaybeService, C, U, R, PS>
-): opts is FederatedAutoResolverOpts<DTO, MaybeService> => 'type' in opts && opts.type === 'federated'
+export const isFederatedResolverOpts = <DTO, MaybeService, R, PS extends PagingStrategies>(
+  opts: AutoResolverOpts<DTO, MaybeService, R, PS>,
+): opts is FederatedAutoResolverOpts<DTO, MaybeService> => 'type' in opts && opts.type === 'federated';
 
-export const isAssemblerCRUDAutoResolverOpts = <DTO, MaybeAssembler, C, U, R, PS extends PagingStrategies>(
-  opts: AutoResolverOpts<DTO, MaybeAssembler, C, U, R, PS>
-): opts is AssemblerCRUDAutoResolverOpts<DTO, MaybeAssembler, C, U, R, PS> => 'DTOClass' in opts && 'AssemblerClass' in opts
+export const isServiceCRUDAutoResolverOpts = <DTO, MaybeService, R, PS extends PagingStrategies>(
+  opts: AutoResolverOpts<DTO, MaybeService, R, PS>,
+): opts is ServiceCRUDAutoResolverOpts<DTO, MaybeService, R, PS> => 'DTOClass' in opts && 'ServiceClass' in opts;
 
-export const isServiceCRUDAutoResolverOpts = <DTO, MaybeService, C, U, R, PS extends PagingStrategies>(
-  opts: AutoResolverOpts<DTO, MaybeService, C, U, R, PS>
-): opts is ServiceCRUDAutoResolverOpts<DTO, MaybeService, C, U, R, PS> => 'DTOClass' in opts && 'ServiceClass' in opts
-
-const getResolverToken = <DTO>(DTOClass: Class<DTO>): string => `${DTOClass.name}AutoResolver`
-const getFederatedResolverToken = <DTO>(DTOClass: Class<DTO>): string => `${DTOClass.name}FederatedAutoResolver`
+const getResolverToken = <DTO>(DTOClass: Class<DTO>): string => `${DTOClass.name}AutoResolver`;
+const getFederatedResolverToken = <DTO>(DTOClass: Class<DTO>): string => `${DTOClass.name}FederatedAutoResolver`;
 
 function createFederatedResolver<DTO, Service>(resolverOpts: FederatedAutoResolverOpts<DTO, Service>): Provider {
-  const { DTOClass } = resolverOpts
+  const { DTOClass } = resolverOpts;
 
   @Resolver(() => DTOClass)
   class AutoResolver extends FederationResolver(DTOClass) {
     constructor(
-      @Inject(resolverOpts.Service) readonly service: QueryService<DTO, unknown, unknown>,
-      @InjectPubSub() readonly pubSub: PubSub
+      @Inject(resolverOpts.Service) readonly service: QueryService<DTO>,
+      @InjectPubSub() readonly pubSub: PubSub,
     ) {
-      super(service)
+      super(service);
     }
   }
 
   // need to set class name so DI works properly
-  Object.defineProperty(AutoResolver, 'name', { value: getFederatedResolverToken(DTOClass), writable: false })
+  Object.defineProperty(AutoResolver, 'name', { value: getFederatedResolverToken(DTOClass), writable: false });
 
-  return AutoResolver
+  return AutoResolver;
 }
 
-function createEntityAutoResolver<DTO extends object, Entity extends object, C, U, R, PS extends PagingStrategies>(
-  resolverOpts: EntityCRUDAutoResolverOpts<DTO, Entity, C, U, R, PS>
+function createEntityAutoResolver<DTO extends object, Entity extends object, R, PS extends PagingStrategies>(
+  resolverOpts: EntityCRUDAutoResolverOpts<DTO, Entity, R, PS>,
 ): Provider {
-  const { DTOClass, EntityClass } = resolverOpts
-
-  class Service extends AssemblerQueryService<DTO, Entity, C, C, U, U> {
-    constructor(service: QueryService<Entity, C, U>) {
-      const assembler = AssemblerFactory.getAssembler<DTO, Entity, C, C, U, U>(DTOClass, EntityClass)
-      super(assembler, service)
-    }
-  }
+  const { DTOClass, EntityClass } = resolverOpts;
 
   @Resolver(() => DTOClass)
   class AutoResolver extends CRUDResolver(DTOClass, resolverOpts) {
-    constructor(@InjectQueryService(EntityClass) service: QueryService<Entity, C, U>, @InjectPubSub() readonly pubSub: PubSub) {
-      super(new Service(service))
+    constructor(@InjectQueryService(EntityClass) service: QueryService<Entity>, @InjectPubSub() readonly pubSub: PubSub) {
+      super(service);
     }
   }
 
   // need to set class name so DI works properly
-  Object.defineProperty(AutoResolver, 'name', { value: getResolverToken(DTOClass), writable: false })
-  return AutoResolver
+  Object.defineProperty(AutoResolver, 'name', { value: getResolverToken(DTOClass), writable: false });
+  return AutoResolver;
 }
 
-function createAssemblerAutoResolver<DTO, Asmblr, C, U, R, PS extends PagingStrategies>(
-  resolverOpts: AssemblerCRUDAutoResolverOpts<DTO, Asmblr, C, U, R, PS>
+function createServiceAutoResolver<DTO, Service, R, PS extends PagingStrategies>(
+  resolverOpts: ServiceCRUDAutoResolverOpts<DTO, Service, R, PS>,
 ): Provider {
-  const { DTOClass, AssemblerClass } = resolverOpts
+  const { DTOClass, ServiceClass } = resolverOpts;
 
   @Resolver(() => DTOClass)
   class AutoResolver extends CRUDResolver(DTOClass, resolverOpts) {
-    constructor(
-      @InjectAssemblerQueryService(AssemblerClass as unknown as Class<Assembler<DTO, unknown, C, unknown, U, unknown>>)
-      service: QueryService<DTO, C, U>,
-      @InjectPubSub() readonly pubSub: PubSub
-    ) {
-      super(service)
+    constructor(@Inject(ServiceClass) service: QueryService<DTO>, @InjectPubSub() readonly pubSub: PubSub) {
+      super(service);
     }
   }
 
   // need to set class name so DI works properly
-  Object.defineProperty(AutoResolver, 'name', { value: getResolverToken(DTOClass), writable: false })
-  return AutoResolver
+  Object.defineProperty(AutoResolver, 'name', { value: getResolverToken(DTOClass), writable: false });
+  return AutoResolver;
 }
 
-function createServiceAutoResolver<DTO, Service, C, U, R, PS extends PagingStrategies>(
-  resolverOpts: ServiceCRUDAutoResolverOpts<DTO, Service, C, U, R, PS>
-): Provider {
-  const { DTOClass, ServiceClass } = resolverOpts
-
-  @Resolver(() => DTOClass)
-  class AutoResolver extends CRUDResolver(DTOClass, resolverOpts) {
-    constructor(@Inject(ServiceClass) service: QueryService<DTO, C, U>, @InjectPubSub() readonly pubSub: PubSub) {
-      super(service)
-    }
-  }
-
-  // need to set class name so DI works properly
-  Object.defineProperty(AutoResolver, 'name', { value: getResolverToken(DTOClass), writable: false })
-  return AutoResolver
-}
-
-function createResolver<DTO extends object, EntityServiceOrAssembler extends object, C, U, R, PS extends PagingStrategies>(
-  resolverOpts: AutoResolverOpts<DTO, EntityServiceOrAssembler, C, U, R, PS>
+function createResolver<DTO extends object, EntityService extends object, R, PS extends PagingStrategies>(
+  resolverOpts: AutoResolverOpts<DTO, EntityService, R, PS>,
 ): Provider {
   if (isFederatedResolverOpts(resolverOpts)) {
-    return createFederatedResolver(resolverOpts)
-  }
-  if (isAssemblerCRUDAutoResolverOpts(resolverOpts)) {
-    return createAssemblerAutoResolver(resolverOpts)
+    return createFederatedResolver(resolverOpts);
   }
   if (isServiceCRUDAutoResolverOpts(resolverOpts)) {
-    return createServiceAutoResolver(resolverOpts)
+    return createServiceAutoResolver(resolverOpts);
   }
-  return createEntityAutoResolver(resolverOpts)
+  return createEntityAutoResolver(resolverOpts);
 }
 
 export const createResolvers = (
-  opts: AutoResolverOpts<object, object, unknown, unknown, unknown, PagingStrategies>[]
-): Provider[] => opts.map((opt) => createResolver(opt))
+  opts: AutoResolverOpts<object, object, unknown, PagingStrategies>[],
+): Provider[] => opts.map((opt) => createResolver(opt));
