@@ -64,9 +64,13 @@
       }
     },
     "version": {
-      "executor": "@jscutlery/semver:version",
+      "cache": false,
+      "executor": "nx:run-commands",
       "options": {
-        "syncVersions": true
+        "cwd": "{projectRoot}",
+        "commands": [
+          "npm version patch"
+        ]
       }
     },
     "prepare": {
