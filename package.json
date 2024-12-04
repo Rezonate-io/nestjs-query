@@ -13,9 +13,9 @@
     "prepare": "husky install",
     "test": "nx run-many --target=test --all",
     "version": "nx run-many --target=version --all && git add . && git commit -m 'bump version' && git push",
-    "publish:core": "cd dist/packages/nestjs-query-core && npm publish",
-    "publish:gql": "cd dist/packages/nestjs-query-graphql && npm publish",
-    "publish:typeorm": "cd dist/packages/nestjs-query-typeorm && npm publish",
+    "publish:core": "cd dist/packages/core && npm publish",
+    "publish:gql": "cd dist/packages/query-graphql && npm publish",
+    "publish:typeorm": "cd dist/packages/query-typeorm && npm publish",
     "copy": "node copy",
     "publish": "npm run publish:core && npm run publish:gql && npm run publish:typeorm"
   },
