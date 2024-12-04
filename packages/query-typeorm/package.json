@@ -1,6 +1,6 @@
 {
   "name": "@rezonate/nestjs-query-typeorm",
-  "version": "6.0.6",
+  "version": "6.0.7",
   "description": "Typeorm adapter for @rezonate/nestjs-query-core",
   "author": "doug-martin <doug@dougamartin.com>",
   "homepage": "https://github.com/Rezonate-io/nestjs-query#readme",
