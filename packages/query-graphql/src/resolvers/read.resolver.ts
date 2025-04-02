@@ -21,6 +21,7 @@ import {
 import { CursorQueryArgsTypeOpts, QueryType, StaticQueryType } from '../types/query';
 import { DEFAULT_QUERY_OPTS } from '../types/query/query-args';
 import { BaseServiceResolver, ExtractPagingStrategy, ResolverClass, ResolverOpts, ServiceResolver } from './resolver.interface';
+import { FilterConstructor } from '../types/query/filter.type';
 
 const QUERY_ARGS_TOKEN = Symbol('QUERY_ARGS_TOKEN');
 
@@ -52,6 +53,8 @@ export interface ReadResolver<DTO, PS extends PagingStrategies, QS extends Query
 }
 
 export const getQueryArgs = <DTO>(DTOClass: Class<DTO>) => FilterType(DTOClass);
+
+export type QueryArgsField<T extends FilterConstructor<any>> = InstanceType<T>;
 
 const serializeNestedObjects = (obj: Record<string, any>): Record<string, any> => {
   const result: Record<string, any> = {};
