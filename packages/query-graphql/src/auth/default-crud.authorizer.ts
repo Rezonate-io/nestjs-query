@@ -2,7 +2,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { Class, Filter } from '@rezonate/nestjs-query-core';
 
-import { getAuthorizer, getRelations } from '../decorators';
+import { getAuthorizer, getHasAuthorizerProvider, getRelations } from '../decorators';
 import { ResolverRelation } from '../resolvers/relations';
 import { AuthorizationContext, Authorizer, CustomAuthorizer } from './authorizer';
 import { getAuthorizerToken, getCustomAuthorizerToken } from './tokens';
@@ -75,7 +75,7 @@ export function createDefaultAuthorizer<DTO>(
         if (!relation) return;
         if (relation.auth) {
           this.relationsAuthorizers.set(relationName, createRelationAuthorizer(relation.auth));
-        } else if (getAuthorizer(relation.DTO)) {
+        } else if (getAuthorizer(relation.DTO) && getHasAuthorizerProvider(relation.DTO)) {
           this.relationsAuthorizers.set(relationName, this.moduleRef.get(getAuthorizerToken(relation.DTO), { strict: false }));
         }
       }
